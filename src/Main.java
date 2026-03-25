@@ -1,6 +1,6 @@
 import java.util.*;
 
-public class PalindromeCheckerApp {
+public class Main {
 
     // L1 Cache (LRU using LinkedHashMap)
     static LinkedHashMap<String, String> L1 = new LinkedHashMap<>(5, 0.75f, true) {
