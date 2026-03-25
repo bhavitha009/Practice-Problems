@@ -2,50 +2,80 @@ import java.util.*;
 
 public class PalindromeCheckerApp {
 
-    // Inventory: product → stock count
-    static HashMap<String, Integer> inventory = new HashMap<>();
+    // DNS Entry class
+    static class DNSEntry {
+        String ipAddress;
+        long expiryTime;
 
-    // Waiting list: product → queue of userIds
-    static HashMap<String, Queue<Integer>> waitingList = new HashMap<>();
+        DNSEntry(String ipAddress, long ttlMillis) {
+            this.ipAddress = ipAddress;
+            this.expiryTime = System.currentTimeMillis() + ttlMillis;
+        }
 
-    // Check stock
-    public static String checkStock(String product) {
-        int stock = inventory.getOrDefault(product, 0);
-        return product + " → " + stock + " units available";
-    }
-
-    // Purchase item
-    public synchronized static String purchaseItem(String product, int userId) {
-
-        int stock = inventory.getOrDefault(product, 0);
-
-        if (stock > 0) {
-            inventory.put(product, stock - 1);
-            return "User " + userId + " → Purchase Success, remaining: " + (stock - 1);
-        } else {
-            waitingList.putIfAbsent(product, new LinkedList<>());
-            waitingList.get(product).add(userId);
-
-            int position = waitingList.get(product).size();
-            return "User " + userId + " → Added to waiting list, position #" + position;
+        boolean isExpired() {
+            return System.currentTimeMillis() > expiryTime;
         }
     }
 
-    public static void main(String[] args) {
+    // Cache: domain → DNSEntry
+    static HashMap<String, DNSEntry> cache = new HashMap<>();
 
-        // Initial stock
-        inventory.put("IPHONE15_256GB", 3);
+    static int hits = 0;
+    static int misses = 0;
 
-        // Check stock
-        System.out.println(checkStock("IPHONE15_256GB"));
+    // Resolve domain
+    public static String resolve(String domain) {
 
-        // Purchase requests
-        System.out.println(purchaseItem("IPHONE15_256GB", 101));
-        System.out.println(purchaseItem("IPHONE15_256GB", 102));
-        System.out.println(purchaseItem("IPHONE15_256GB", 103));
+        if (cache.containsKey(domain)) {
+            DNSEntry entry = cache.get(domain);
 
-        // Stock finished → waiting list
-        System.out.println(purchaseItem("IPHONE15_256GB", 104));
-        System.out.println(purchaseItem("IPHONE15_256GB", 105));
+            if (!entry.isExpired()) {
+                hits++;
+                return "Cache HIT → " + entry.ipAddress;
+            } else {
+                cache.remove(domain); // remove expired
+            }
+        }
+
+        // Cache MISS → simulate DNS lookup
+        misses++;
+        String newIP = fetchFromServer(domain);
+
+        cache.put(domain, new DNSEntry(newIP, 5000)); // TTL = 5 sec
+
+        return "Cache MISS → " + newIP;
+    }
+
+    // Simulate upstream DNS fetch
+    public static String fetchFromServer(String domain) {
+        return "192.168." + (int)(Math.random()*255) + "." + (int)(Math.random()*255);
+    }
+
+    // Cache statistics
+    public static void getStats() {
+        int total = hits + misses;
+        double hitRate = (total == 0) ? 0 : (hits * 100.0 / total);
+
+        System.out.println("Hits: " + hits);
+        System.out.println("Misses: " + misses);
+        System.out.println("Hit Rate: " + hitRate + "%");
+    }
+
+    public static void main(String[] args) throws InterruptedException {
+
+        // First call → MISS
+        System.out.println(resolve("google.com"));
+
+        // Second call → HIT
+        System.out.println(resolve("google.com"));
+
+        // Wait for TTL to expire
+        Thread.sleep(6000);
+
+        // After expiry → MISS again
+        System.out.println(resolve("google.com"));
+
+        // Stats
+        getStats();
     }
 }
