@@ -2,88 +2,91 @@ import java.util.*;
 
 public class PalindromeCheckerApp {
 
-    // Page → total visits
-    static HashMap<String, Integer> pageViews = new HashMap<>();
+    // Token Bucket class
+    static class TokenBucket {
+        int tokens;
+        int maxTokens;
+        int refillRate; // tokens per second
+        long lastRefillTime;
 
-    // Page → unique users
-    static HashMap<String, Set<String>> uniqueVisitors = new HashMap<>();
+        TokenBucket(int maxTokens, int refillRate) {
+            this.maxTokens = maxTokens;
+            this.refillRate = refillRate;
+            this.tokens = maxTokens;
+            this.lastRefillTime = System.currentTimeMillis();
+        }
 
-    // Traffic source → count
-    static HashMap<String, Integer> trafficSources = new HashMap<>();
+        // Refill tokens based on time passed
+        void refill() {
+            long now = System.currentTimeMillis();
+            long secondsPassed = (now - lastRefillTime) / 1000;
 
-    // Process event
-    public static void processEvent(String url, String userId, String source) {
+            if (secondsPassed > 0) {
+                int newTokens = (int) secondsPassed * refillRate;
+                tokens = Math.min(maxTokens, tokens + newTokens);
+                lastRefillTime = now;
+            }
+        }
 
-        // Count page views
-        pageViews.put(url, pageViews.getOrDefault(url, 0) + 1);
-
-        // Track unique users
-        uniqueVisitors.putIfAbsent(url, new HashSet<>());
-        uniqueVisitors.get(url).add(userId);
-
-        // Track traffic source
-        trafficSources.put(source, trafficSources.getOrDefault(source, 0) + 1);
-    }
-
-    // Get Top 10 pages
-    public static void getTopPages() {
-
-        List<Map.Entry<String, Integer>> list = new ArrayList<>(pageViews.entrySet());
-
-        // Sort descending
-        list.sort((a, b) -> b.getValue() - a.getValue());
-
-        System.out.println("Top Pages:");
-
-        int count = 0;
-        for (Map.Entry<String, Integer> entry : list) {
-            String page = entry.getKey();
-            int views = entry.getValue();
-            int unique = uniqueVisitors.get(page).size();
-
-            System.out.println((count + 1) + ". " + page + " - " + views +
-                    " views (" + unique + " unique)");
-
-            count++;
-            if (count == 10) break;
+        // Try consuming token
+        boolean allowRequest() {
+            refill();
+            if (tokens > 0) {
+                tokens--;
+                return true;
+            }
+            return false;
         }
     }
 
-    // Show traffic sources %
-    public static void getTrafficSources() {
+    // Client → TokenBucket
+    static HashMap<String, TokenBucket> clients = new HashMap<>();
 
-        int total = 0;
-        for (int count : trafficSources.values()) {
-            total += count;
-        }
+    // Rate limit check
+    public static String checkRateLimit(String clientId) {
 
-        System.out.println("\nTraffic Sources:");
+        clients.putIfAbsent(clientId, new TokenBucket(5, 1)); // 5 max, 1/sec
 
-        for (String source : trafficSources.keySet()) {
-            int count = trafficSources.get(source);
-            double percent = (count * 100.0) / total;
+        TokenBucket bucket = clients.get(clientId);
 
-            System.out.println(source + ": " + percent + "%");
+        if (bucket.allowRequest()) {
+            return "Allowed (" + bucket.tokens + " tokens left)";
+        } else {
+            return "Denied (Rate limit exceeded)";
         }
     }
 
-    // Dashboard
-    public static void getDashboard() {
-        getTopPages();
-        getTrafficSources();
+    // Get client status
+    public static void getStatus(String clientId) {
+        TokenBucket bucket = clients.get(clientId);
+
+        if (bucket != null) {
+            System.out.println("Client: " + clientId +
+                    " | Tokens left: " + bucket.tokens +
+                    " | Max: " + bucket.maxTokens);
+        }
     }
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws InterruptedException {
 
-        // Simulate events
-        processEvent("/article/news", "user1", "google");
-        processEvent("/article/news", "user2", "facebook");
-        processEvent("/article/news", "user1", "google");
-        processEvent("/sports/match", "user3", "direct");
-        processEvent("/sports/match", "user4", "google");
-        processEvent("/sports/match", "user5", "google");
+        String client = "abc123";
 
-        // Show dashboard
-        getDashboard();
+        // Burst requests
+        for (int i = 0; i < 7; i++) {
+            System.out.println(checkRateLimit(client));
+        }
+
+        // Wait for refill
+        Thread.sleep(3000);
+
+        System.out.println("\nAfter waiting:");
+
+        // Try again
+        for (int i = 0; i < 3; i++) {
+            System.out.println(checkRateLimit(client));
+        }
+
+        // Status
+        getStatus(client);
     }
 }
