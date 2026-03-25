@@ -2,83 +2,88 @@ import java.util.*;
 
 public class PalindromeCheckerApp {
 
-    // n-gram size
-    static final int N = 3;
+    // Page → total visits
+    static HashMap<String, Integer> pageViews = new HashMap<>();
 
-    // Map: n-gram → set of document IDs
-    static HashMap<String, Set<String>> ngramMap = new HashMap<>();
+    // Page → unique users
+    static HashMap<String, Set<String>> uniqueVisitors = new HashMap<>();
 
-    // Store document text
-    static HashMap<String, String> documents = new HashMap<>();
+    // Traffic source → count
+    static HashMap<String, Integer> trafficSources = new HashMap<>();
 
-    // Add document and build n-grams
-    public static void addDocument(String docId, String text) {
-        documents.put(docId, text);
+    // Process event
+    public static void processEvent(String url, String userId, String source) {
 
-        String[] words = text.split(" ");
+        // Count page views
+        pageViews.put(url, pageViews.getOrDefault(url, 0) + 1);
 
-        for (int i = 0; i <= words.length - N; i++) {
-            StringBuilder gram = new StringBuilder();
+        // Track unique users
+        uniqueVisitors.putIfAbsent(url, new HashSet<>());
+        uniqueVisitors.get(url).add(userId);
 
-            for (int j = 0; j < N; j++) {
-                gram.append(words[i + j]).append(" ");
-            }
+        // Track traffic source
+        trafficSources.put(source, trafficSources.getOrDefault(source, 0) + 1);
+    }
 
-            String ngram = gram.toString().trim();
+    // Get Top 10 pages
+    public static void getTopPages() {
 
-            ngramMap.putIfAbsent(ngram, new HashSet<>());
-            ngramMap.get(ngram).add(docId);
+        List<Map.Entry<String, Integer>> list = new ArrayList<>(pageViews.entrySet());
+
+        // Sort descending
+        list.sort((a, b) -> b.getValue() - a.getValue());
+
+        System.out.println("Top Pages:");
+
+        int count = 0;
+        for (Map.Entry<String, Integer> entry : list) {
+            String page = entry.getKey();
+            int views = entry.getValue();
+            int unique = uniqueVisitors.get(page).size();
+
+            System.out.println((count + 1) + ". " + page + " - " + views +
+                    " views (" + unique + " unique)");
+
+            count++;
+            if (count == 10) break;
         }
     }
 
-    // Compare document with existing ones
-    public static void analyzeDocument(String newDocId, String text) {
+    // Show traffic sources %
+    public static void getTrafficSources() {
 
-        String[] words = text.split(" ");
-        HashMap<String, Integer> matchCount = new HashMap<>();
-
-        int totalNgrams = 0;
-
-        for (int i = 0; i <= words.length - N; i++) {
-            StringBuilder gram = new StringBuilder();
-
-            for (int j = 0; j < N; j++) {
-                gram.append(words[i + j]).append(" ");
-            }
-
-            String ngram = gram.toString().trim();
-            totalNgrams++;
-
-            if (ngramMap.containsKey(ngram)) {
-                for (String docId : ngramMap.get(ngram)) {
-                    matchCount.put(docId, matchCount.getOrDefault(docId, 0) + 1);
-                }
-            }
+        int total = 0;
+        for (int count : trafficSources.values()) {
+            total += count;
         }
 
-        System.out.println("Total n-grams: " + totalNgrams);
+        System.out.println("\nTraffic Sources:");
 
-        // Calculate similarity
-        for (String docId : matchCount.keySet()) {
-            int matches = matchCount.get(docId);
-            double similarity = (matches * 100.0) / totalNgrams;
+        for (String source : trafficSources.keySet()) {
+            int count = trafficSources.get(source);
+            double percent = (count * 100.0) / total;
 
-            System.out.println("Matched with " + docId + " → " + matches + " n-grams");
-            System.out.println("Similarity: " + similarity + "%");
-
-            if (similarity > 50) {
-                System.out.println("⚠️ PLAGIARISM DETECTED");
-            }
+            System.out.println(source + ": " + percent + "%");
         }
+    }
+
+    // Dashboard
+    public static void getDashboard() {
+        getTopPages();
+        getTrafficSources();
     }
 
     public static void main(String[] args) {
 
-        // Add existing documents
-        addDocument("doc1", "this is a sample document for testing plagiarism detection");
-        addDocument("doc2", "this document is used for plagiarism testing system");
+        // Simulate events
+        processEvent("/article/news", "user1", "google");
+        processEvent("/article/news", "user2", "facebook");
+        processEvent("/article/news", "user1", "google");
+        processEvent("/sports/match", "user3", "direct");
+        processEvent("/sports/match", "user4", "google");
+        processEvent("/sports/match", "user5", "google");
 
-        // Analyze new document
-        analyzeDocument("doc3", "this is a sample document used for testing plagiarism");
+        // Show dashboard
+        getDashboard();
     }
 }
