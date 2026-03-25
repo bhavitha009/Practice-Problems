@@ -2,80 +2,83 @@ import java.util.*;
 
 public class PalindromeCheckerApp {
 
-    // DNS Entry class
-    static class DNSEntry {
-        String ipAddress;
-        long expiryTime;
+    // n-gram size
+    static final int N = 3;
 
-        DNSEntry(String ipAddress, long ttlMillis) {
-            this.ipAddress = ipAddress;
-            this.expiryTime = System.currentTimeMillis() + ttlMillis;
-        }
+    // Map: n-gram → set of document IDs
+    static HashMap<String, Set<String>> ngramMap = new HashMap<>();
 
-        boolean isExpired() {
-            return System.currentTimeMillis() > expiryTime;
+    // Store document text
+    static HashMap<String, String> documents = new HashMap<>();
+
+    // Add document and build n-grams
+    public static void addDocument(String docId, String text) {
+        documents.put(docId, text);
+
+        String[] words = text.split(" ");
+
+        for (int i = 0; i <= words.length - N; i++) {
+            StringBuilder gram = new StringBuilder();
+
+            for (int j = 0; j < N; j++) {
+                gram.append(words[i + j]).append(" ");
+            }
+
+            String ngram = gram.toString().trim();
+
+            ngramMap.putIfAbsent(ngram, new HashSet<>());
+            ngramMap.get(ngram).add(docId);
         }
     }
 
-    // Cache: domain → DNSEntry
-    static HashMap<String, DNSEntry> cache = new HashMap<>();
+    // Compare document with existing ones
+    public static void analyzeDocument(String newDocId, String text) {
 
-    static int hits = 0;
-    static int misses = 0;
+        String[] words = text.split(" ");
+        HashMap<String, Integer> matchCount = new HashMap<>();
 
-    // Resolve domain
-    public static String resolve(String domain) {
+        int totalNgrams = 0;
 
-        if (cache.containsKey(domain)) {
-            DNSEntry entry = cache.get(domain);
+        for (int i = 0; i <= words.length - N; i++) {
+            StringBuilder gram = new StringBuilder();
 
-            if (!entry.isExpired()) {
-                hits++;
-                return "Cache HIT → " + entry.ipAddress;
-            } else {
-                cache.remove(domain); // remove expired
+            for (int j = 0; j < N; j++) {
+                gram.append(words[i + j]).append(" ");
+            }
+
+            String ngram = gram.toString().trim();
+            totalNgrams++;
+
+            if (ngramMap.containsKey(ngram)) {
+                for (String docId : ngramMap.get(ngram)) {
+                    matchCount.put(docId, matchCount.getOrDefault(docId, 0) + 1);
+                }
             }
         }
 
-        // Cache MISS → simulate DNS lookup
-        misses++;
-        String newIP = fetchFromServer(domain);
+        System.out.println("Total n-grams: " + totalNgrams);
 
-        cache.put(domain, new DNSEntry(newIP, 5000)); // TTL = 5 sec
+        // Calculate similarity
+        for (String docId : matchCount.keySet()) {
+            int matches = matchCount.get(docId);
+            double similarity = (matches * 100.0) / totalNgrams;
 
-        return "Cache MISS → " + newIP;
+            System.out.println("Matched with " + docId + " → " + matches + " n-grams");
+            System.out.println("Similarity: " + similarity + "%");
+
+            if (similarity > 50) {
+                System.out.println("⚠️ PLAGIARISM DETECTED");
+            }
+        }
     }
 
-    // Simulate upstream DNS fetch
-    public static String fetchFromServer(String domain) {
-        return "192.168." + (int)(Math.random()*255) + "." + (int)(Math.random()*255);
-    }
+    public static void main(String[] args) {
 
-    // Cache statistics
-    public static void getStats() {
-        int total = hits + misses;
-        double hitRate = (total == 0) ? 0 : (hits * 100.0 / total);
+        // Add existing documents
+        addDocument("doc1", "this is a sample document for testing plagiarism detection");
+        addDocument("doc2", "this document is used for plagiarism testing system");
 
-        System.out.println("Hits: " + hits);
-        System.out.println("Misses: " + misses);
-        System.out.println("Hit Rate: " + hitRate + "%");
-    }
-
-    public static void main(String[] args) throws InterruptedException {
-
-        // First call → MISS
-        System.out.println(resolve("google.com"));
-
-        // Second call → HIT
-        System.out.println(resolve("google.com"));
-
-        // Wait for TTL to expire
-        Thread.sleep(6000);
-
-        // After expiry → MISS again
-        System.out.println(resolve("google.com"));
-
-        // Stats
-        getStats();
+        // Analyze new document
+        analyzeDocument("doc3", "this is a sample document used for testing plagiarism");
     }
 }
