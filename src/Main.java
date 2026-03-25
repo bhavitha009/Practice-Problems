@@ -2,91 +2,59 @@ import java.util.*;
 
 public class PalindromeCheckerApp {
 
-    // Token Bucket class
-    static class TokenBucket {
-        int tokens;
-        int maxTokens;
-        int refillRate; // tokens per second
-        long lastRefillTime;
+    // Query → frequency
+    static HashMap<String, Integer> searchMap = new HashMap<>();
 
-        TokenBucket(int maxTokens, int refillRate) {
-            this.maxTokens = maxTokens;
-            this.refillRate = refillRate;
-            this.tokens = maxTokens;
-            this.lastRefillTime = System.currentTimeMillis();
-        }
+    // Add/update search query
+    public static void updateFrequency(String query) {
+        searchMap.put(query, searchMap.getOrDefault(query, 0) + 1);
+    }
 
-        // Refill tokens based on time passed
-        void refill() {
-            long now = System.currentTimeMillis();
-            long secondsPassed = (now - lastRefillTime) / 1000;
+    // Get top suggestions for prefix
+    public static List<String> autocomplete(String prefix) {
 
-            if (secondsPassed > 0) {
-                int newTokens = (int) secondsPassed * refillRate;
-                tokens = Math.min(maxTokens, tokens + newTokens);
-                lastRefillTime = now;
+        List<Map.Entry<String, Integer>> list = new ArrayList<>();
+
+        // Filter matching prefix
+        for (Map.Entry<String, Integer> entry : searchMap.entrySet()) {
+            if (entry.getKey().startsWith(prefix)) {
+                list.add(entry);
             }
         }
 
-        // Try consuming token
-        boolean allowRequest() {
-            refill();
-            if (tokens > 0) {
-                tokens--;
-                return true;
-            }
-            return false;
+        // Sort by frequency (descending)
+        list.sort((a, b) -> b.getValue() - a.getValue());
+
+        // Get top 10
+        List<String> result = new ArrayList<>();
+        int count = 0;
+
+        for (Map.Entry<String, Integer> entry : list) {
+            result.add(entry.getKey() + " (" + entry.getValue() + ")");
+            count++;
+            if (count == 10) break;
         }
+
+        return result;
     }
 
-    // Client → TokenBucket
-    static HashMap<String, TokenBucket> clients = new HashMap<>();
+    public static void main(String[] args) {
 
-    // Rate limit check
-    public static String checkRateLimit(String clientId) {
+        // Add search queries
+        updateFrequency("java tutorial");
+        updateFrequency("javascript");
+        updateFrequency("java download");
+        updateFrequency("java tutorial");
+        updateFrequency("java 21 features");
+        updateFrequency("java tutorial");
+        updateFrequency("java vs python");
 
-        clients.putIfAbsent(clientId, new TokenBucket(5, 1)); // 5 max, 1/sec
+        // Search
+        List<String> suggestions = autocomplete("jav");
 
-        TokenBucket bucket = clients.get(clientId);
-
-        if (bucket.allowRequest()) {
-            return "Allowed (" + bucket.tokens + " tokens left)";
-        } else {
-            return "Denied (Rate limit exceeded)";
+        System.out.println("Suggestions:");
+        for (String s : suggestions) {
+            System.out.println(s);
         }
-    }
-
-    // Get client status
-    public static void getStatus(String clientId) {
-        TokenBucket bucket = clients.get(clientId);
-
-        if (bucket != null) {
-            System.out.println("Client: " + clientId +
-                    " | Tokens left: " + bucket.tokens +
-                    " | Max: " + bucket.maxTokens);
-        }
-    }
-
-    public static void main(String[] args) throws InterruptedException {
-
-        String client = "abc123";
-
-        // Burst requests
-        for (int i = 0; i < 7; i++) {
-            System.out.println(checkRateLimit(client));
-        }
-
-        // Wait for refill
-        Thread.sleep(3000);
-
-        System.out.println("\nAfter waiting:");
-
-        // Try again
-        for (int i = 0; i < 3; i++) {
-            System.out.println(checkRateLimit(client));
-        }
-
-        // Status
-        getStatus(client);
     }
 }
