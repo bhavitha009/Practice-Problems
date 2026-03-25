@@ -2,69 +2,76 @@ import java.util.*;
 
 public class PalindromeCheckerApp {
 
-    static final int SIZE = 10;
+    // Transaction class
+    static class Transaction {
+        int id;
+        int amount;
+        String merchant;
+        String time;
 
-    // Parking slots
-    static String[] parking = new String[SIZE];
-
-    // Entry time tracking
-    static HashMap<String, Long> entryTime = new HashMap<>();
-
-    // Park vehicle
-    public static String parkVehicle(String vehicle) {
-
-        int index = Math.abs(vehicle.hashCode()) % SIZE;
-        int probes = 0;
-
-        while (parking[index] != null) {
-            index = (index + 1) % SIZE;
-            probes++;
+        Transaction(int id, int amount, String merchant, String time) {
+            this.id = id;
+            this.amount = amount;
+            this.merchant = merchant;
+            this.time = time;
         }
-
-        parking[index] = vehicle;
-        entryTime.put(vehicle, System.currentTimeMillis());
-
-        return vehicle + " parked at slot " + index + " (" + probes + " probes)";
     }
 
-    // Exit vehicle
-    public static String exitVehicle(String vehicle) {
+    // ================== Two Sum ==================
+    public static void findTwoSum(List<Transaction> list, int target) {
 
-        for (int i = 0; i < SIZE; i++) {
-            if (vehicle.equals(parking[i])) {
+        HashMap<Integer, Transaction> map = new HashMap<>();
 
-                parking[i] = null;
+        for (Transaction t : list) {
+            int complement = target - t.amount;
 
-                long duration = (System.currentTimeMillis() - entryTime.get(vehicle)) / 1000;
-                entryTime.remove(vehicle);
+            if (map.containsKey(complement)) {
+                Transaction t2 = map.get(complement);
 
-                return vehicle + " exited. Duration: " + duration + " seconds";
+                System.out.println("Pair Found → (" + t2.id + ", " + t.id + ")");
+                return;
+            }
+
+            map.put(t.amount, t);
+        }
+
+        System.out.println("No pair found");
+    }
+
+    // ================== Duplicate Detection ==================
+    public static void detectDuplicates(List<Transaction> list) {
+
+        HashMap<String, List<Integer>> map = new HashMap<>();
+
+        for (Transaction t : list) {
+            String key = t.amount + "_" + t.merchant;
+
+            map.putIfAbsent(key, new ArrayList<>());
+            map.get(key).add(t.id);
+        }
+
+        System.out.println("Duplicates:");
+
+        for (String key : map.keySet()) {
+            if (map.get(key).size() > 1) {
+                System.out.println(key + " → Transactions: " + map.get(key));
             }
         }
-
-        return "Vehicle not found";
     }
 
-    // Display parking status
-    public static void displayParking() {
-        System.out.println("Parking Status:");
-        for (int i = 0; i < SIZE; i++) {
-            System.out.println("Slot " + i + ": " + (parking[i] == null ? "EMPTY" : parking[i]));
-        }
-    }
+    public static void main(String[] args) {
 
-    public static void main(String[] args) throws InterruptedException {
+        List<Transaction> transactions = new ArrayList<>();
 
-        System.out.println(parkVehicle("ABC123"));
-        System.out.println(parkVehicle("XYZ999"));
-        System.out.println(parkVehicle("ABC124"));
+        transactions.add(new Transaction(1, 500, "StoreA", "10:00"));
+        transactions.add(new Transaction(2, 300, "StoreB", "10:15"));
+        transactions.add(new Transaction(3, 200, "StoreC", "10:30"));
+        transactions.add(new Transaction(4, 500, "StoreA", "11:00")); // duplicate
 
-        displayParking();
+        // Two Sum
+        findTwoSum(transactions, 500); // 300 + 200
 
-        Thread.sleep(2000);
-
-        System.out.println(exitVehicle("ABC123"));
-
-        displayParking();
+        // Duplicate detection
+        detectDuplicates(transactions);
     }
 }
