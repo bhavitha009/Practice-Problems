@@ -2,69 +2,50 @@ import java.util.*;
 
 public class PalindromeCheckerApp {
 
-    // ================== Problem 1 ==================
+    // Inventory: product → stock count
+    static HashMap<String, Integer> inventory = new HashMap<>();
 
-    static HashMap<String, Integer> users = new HashMap<>();
-    static HashMap<String, Integer> attempts = new HashMap<>();
+    // Waiting list: product → queue of userIds
+    static HashMap<String, Queue<Integer>> waitingList = new HashMap<>();
 
-    // Check availability
-    public static boolean checkAvailability(String username) {
-        attempts.put(username, attempts.getOrDefault(username, 0) + 1);
-        return !users.containsKey(username);
+    // Check stock
+    public static String checkStock(String product) {
+        int stock = inventory.getOrDefault(product, 0);
+        return product + " → " + stock + " units available";
     }
 
-    // Register user
-    public static void registerUser(String username, int userId) {
-        users.put(username, userId);
-    }
+    // Purchase item
+    public synchronized static String purchaseItem(String product, int userId) {
 
-    // Suggest alternatives
-    public static List<String> suggestAlternatives(String username) {
-        List<String> suggestions = new ArrayList<>();
+        int stock = inventory.getOrDefault(product, 0);
 
-        suggestions.add(username + "1");
-        suggestions.add(username + "123");
-        suggestions.add(username + "_01");
-        suggestions.add(username.replace("_", "."));
+        if (stock > 0) {
+            inventory.put(product, stock - 1);
+            return "User " + userId + " → Purchase Success, remaining: " + (stock - 1);
+        } else {
+            waitingList.putIfAbsent(product, new LinkedList<>());
+            waitingList.get(product).add(userId);
 
-        return suggestions;
-    }
-
-    // Get most attempted username
-    public static String getMostAttempted() {
-        String maxUser = "";
-        int maxCount = 0;
-
-        for (String user : attempts.keySet()) {
-            if (attempts.get(user) > maxCount) {
-                maxCount = attempts.get(user);
-                maxUser = user;
-            }
+            int position = waitingList.get(product).size();
+            return "User " + userId + " → Added to waiting list, position #" + position;
         }
-        return maxUser + " (" + maxCount + " attempts)";
     }
-
-    // ================== MAIN ==================
 
     public static void main(String[] args) {
 
-        // Pre-existing users
-        registerUser("john_doe", 1);
-        registerUser("admin", 2);
+        // Initial stock
+        inventory.put("IPHONE15_256GB", 3);
 
-        // Check availability
-        System.out.println(checkAvailability("john_doe"));   // false
-        System.out.println(checkAvailability("jane_smith")); // true
+        // Check stock
+        System.out.println(checkStock("IPHONE15_256GB"));
 
-        // Suggestions
-        System.out.println(suggestAlternatives("john_doe"));
+        // Purchase requests
+        System.out.println(purchaseItem("IPHONE15_256GB", 101));
+        System.out.println(purchaseItem("IPHONE15_256GB", 102));
+        System.out.println(purchaseItem("IPHONE15_256GB", 103));
 
-        // Multiple attempts
-        checkAvailability("admin");
-        checkAvailability("admin");
-        checkAvailability("admin");
-
-        // Most attempted
-        System.out.println(getMostAttempted());
+        // Stock finished → waiting list
+        System.out.println(purchaseItem("IPHONE15_256GB", 104));
+        System.out.println(purchaseItem("IPHONE15_256GB", 105));
     }
 }
