@@ -2,81 +2,89 @@ import java.util.*;
 
 public class Main {
 
-    // L1 Cache (LRU using LinkedHashMap)
-    static LinkedHashMap<String, String> L1 = new LinkedHashMap<>(5, 0.75f, true) {
-        protected boolean removeEldestEntry(Map.Entry<String, String> eldest) {
-            return size() > 5;
-        }
-    };
+    static class Transaction {
+        String id;
+        double fee;
+        String timestamp;
 
-    // L2 Cache
-    static HashMap<String, String> L2 = new HashMap<>();
-
-    // L3 Database (simulated)
-    static HashMap<String, String> L3 = new HashMap<>();
-
-    // Access count (for promotion)
-    static HashMap<String, Integer> accessCount = new HashMap<>();
-
-    // Get video
-    public static String getVideo(String videoId) {
-
-        // L1 Check
-        if (L1.containsKey(videoId)) {
-            return "L1 HIT → " + L1.get(videoId);
+        Transaction(String id, double fee, String timestamp) {
+            this.id = id;
+            this.fee = fee;
+            this.timestamp = timestamp;
         }
 
-        // L2 Check
-        if (L2.containsKey(videoId)) {
-            String data = L2.get(videoId);
-
-            // Promote to L1
-            L1.put(videoId, data);
-
-            return "L2 HIT → Promoted to L1 → " + data;
+        public String toString() {
+            return id + ":" + fee + "@" + timestamp;
         }
-
-        // L3 (Database)
-        if (L3.containsKey(videoId)) {
-            String data = L3.get(videoId);
-
-            // Add to L2
-            L2.put(videoId, data);
-
-            accessCount.put(videoId, 1);
-
-            return "L3 HIT → Added to L2 → " + data;
-        }
-
-        return "Video not found";
     }
 
-    // Add video to database
-    public static void addVideo(String videoId, String data) {
-        L3.put(videoId, data);
+    // Bubble Sort (fee ASC)
+    public static void bubbleSort(List<Transaction> list) {
+        int n = list.size();
+
+        for (int i = 0; i < n - 1; i++) {
+            boolean swapped = false;
+
+            for (int j = 0; j < n - i - 1; j++) {
+                if (list.get(j).fee > list.get(j + 1).fee) {
+                    Collections.swap(list, j, j + 1);
+                    swapped = true;
+                }
+            }
+
+            if (!swapped) break;
+        }
+
+        System.out.println("Bubble Sorted: " + list);
     }
 
-    // Show stats
-    public static void getStats() {
-        System.out.println("L1 size: " + L1.size());
-        System.out.println("L2 size: " + L2.size());
-        System.out.println("L3 size: " + L3.size());
+    // Insertion Sort (fee + timestamp)
+    public static void insertionSort(List<Transaction> list) {
+        for (int i = 1; i < list.size(); i++) {
+            Transaction key = list.get(i);
+            int j = i - 1;
+
+            while (j >= 0 &&
+                    (list.get(j).fee > key.fee ||
+                            (list.get(j).fee == key.fee &&
+                                    list.get(j).timestamp.compareTo(key.timestamp) > 0))) {
+
+                list.set(j + 1, list.get(j));
+                j--;
+            }
+
+            list.set(j + 1, key);
+        }
+
+        System.out.println("Insertion Sorted: " + list);
+    }
+
+    // High fee detection
+    public static void detectHighFees(List<Transaction> list) {
+        System.out.print("High-fee (>50): ");
+
+        boolean found = false;
+        for (Transaction t : list) {
+            if (t.fee > 50) {
+                System.out.print(t + " ");
+                found = true;
+            }
+        }
+
+        if (!found) System.out.print("None");
+        System.out.println();
     }
 
     public static void main(String[] args) {
 
-        // Add videos to database
-        addVideo("video1", "Movie A");
-        addVideo("video2", "Movie B");
+        List<Transaction> list = new ArrayList<>();
 
-        // Access flow
-        System.out.println(getVideo("video1")); // L3 → L2
-        System.out.println(getVideo("video1")); // L2 → L1
-        System.out.println(getVideo("video1")); // L1 hit
+        list.add(new Transaction("id1", 10.5, "10:00"));
+        list.add(new Transaction("id2", 25.0, "09:30"));
+        list.add(new Transaction("id3", 5.0, "10:15"));
 
-        System.out.println(getVideo("video2")); // L3 → L2
-
-        // Stats
-        getStats();
+        bubbleSort(new ArrayList<>(list));
+        insertionSort(list);
+        detectHighFees(list);
     }
 }
